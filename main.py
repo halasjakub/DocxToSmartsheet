@@ -29,11 +29,6 @@ gui_main_window.geometry(f"{pyautogui.size()[0]}x{pyautogui.size()[1]}")
 
 def get_d_code_en_num_from_docx(file_path):
     """Extract the D code and Enhancement number from a DOCX file."""
-    # Check if the file is a DOCX file and if it exists
-    if not file_path.lower().endswith('.docx') or not os.path.isfile(file_path):
-        print(f"Invalid file format or file not found: {file_path}")
-        return None, None
-
     document = Document(file_path)
 
     keywords = ["Client UAT for Task ", "Enhancement Number "]
@@ -222,6 +217,14 @@ def ask_about_word():
     global vendor_name, vendor_url, word_file  # Declare as global so it can be accessed in other parts of the code
     word_file = filedialog.askopenfilename()
 
+    # Check if the file is a DOCX file and if it exists
+    if not word_file.lower().endswith('.docx') or not os.path.isfile(word_file):
+        tkinter.messagebox.showinfo(
+            "Open",
+            f"Invalid file format or file not found: {word_file}"
+            )
+        return None
+    
     if word_file and os.path.exists(word_file):
         ask_about_file = tkinter.messagebox.askquestion("Open", f"Is {word_file} a Word file?")
 
