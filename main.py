@@ -1,9 +1,11 @@
 import os
 import json
 import time
+import tkinter.messagebox
 import pyautogui
 import logging
 import smartsheet
+import smartsheet.exceptions
 import config
 import smartsheet_data
 import tkinter
@@ -163,17 +165,28 @@ def searching_row_id(sheet_id, d_code_column_name, d_code, en_num_column_name, e
 
 def searching_column_id(sheet_id, new_value):
     """Search for the column ID by matching column title with new_value."""
-    sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
-    column_id = None
+    try: 
+        sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
+        if hasattr(sheet,'columns'):
+            column_id = None
 
-    for column in sheet.columns:
-        if column.title == new_value:
-            column_id = column.id
-            return column_id
-
-    print(f"No column: {new_value}")
-    return column_id
-
+            for column in sheet.columns:
+                if column.title == new_value:
+                    column_id = column.id
+                    return column_id
+        else:
+            tkinter.messagebox.showinfo(
+                "Searching column ID",
+                f"Invaild or not found: {sheet}"
+            )
+            return None
+    
+    except smartsheet.exception.ApiError as e:
+        tkinter.messagebox.showinfo(
+            "Searching column ID",
+            f"Error during API call: {e}"
+        )
+        return None
 
 def update_single_cell_in_smartsheet(sheet_id, row_id, column_id, new_value):
     """Update a single cell in a row on a Smartsheet."""
