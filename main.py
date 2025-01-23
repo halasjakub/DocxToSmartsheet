@@ -254,11 +254,15 @@ def connection_tester():
 
     try:
         account_info = smartsheet_client.Users.get_current_user()
-        print(f"email: {account_info.email}")
+        tkinter.messagebox.showinfo(
+            "Connection test",
+            f"Connection test completed, connected by: {account_info.email}"
+        )
     except smartsheet.exceptions.ApiError as e:
-        print(f"Error: {e}")
-
-    print("Done")
+        tkinter.messagebox.showinfo(
+            "Connection test",
+            f"Connection test completed, error: {e}"
+        )
 
 
 def starter():
