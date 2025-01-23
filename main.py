@@ -1,11 +1,9 @@
 import os
 import json
 import time
-import tkinter.messagebox
 import pyautogui
 import logging
 import smartsheet
-import smartsheet.exceptions
 import config
 import smartsheet_data
 import tkinter
@@ -119,7 +117,6 @@ def get_count_import_docx_data_to_smartsheet(file_path):
     for (d_code, issue_type), issues_number in issue_type_counts.items():
         print(f"{d_code} | {e_number} | {issues_number} | {issue_type}")
         column_id = searching_column_id(vendor_url, issue_type)
-        print(f"{row_id} | {issues_number} | {column_id}")
         update_single_cell_in_smartsheet(vendor_url, row_id, column_id, issues_number)
 
     update_single_cell_in_smartsheet(
@@ -138,10 +135,8 @@ def get_count_import_docx_data_to_smartsheet(file_path):
 
 def searching_row_id(sheet_id, d_code_column_name, d_code, en_num_column_name, e_number):
     """Search for a row ID based on d_code and e_number in specified columns."""
-    sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
-    column_names = {col.title: col.id for col in sheet.columns}
-    row_id = None
-
+    
+    
     def check_values_in_row(row):
         """Check if the row contains the correct d_code and e_number."""
         found_d_code = False
@@ -155,19 +150,39 @@ def searching_row_id(sheet_id, d_code_column_name, d_code, en_num_column_name, e
 
         return found_d_code == d_code and found_en_num == e_number
 
-    for row in sheet.rows:
-        if check_values_in_row(row):
-            row_id = row.id
+    try:
+        sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
+        if hasattr(sheet, 'columns'):
+            column_names = {col.title: col.id for col in sheet.columns}
+            row_id = None
+
+            for row in sheet.rows:
+                if check_values_in_row(row):
+                    row_id = row.id
+                    return row_id
+
             return row_id
 
-    return row_id
-
+        else:
+            tkinter.messagebox.showinfo(
+                "Searching row ID",
+                f"Invalid or not found sheet: {sheet}"
+            )
+            return None
+    
+    except smartsheet.exceptions.ApiError as e:
+        tkinter.messagebox.showinfo(
+                "Searching row ID",
+                f"Error during API call: {e}"
+            )
+        return None    
+    
 
 def searching_column_id(sheet_id, new_value):
     """Search for the column ID by matching column title with new_value."""
-    try: 
+    try:
         sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
-        if hasattr(sheet,'columns'):
+        if hasattr(sheet, 'columns'):
             column_id = None
 
             for column in sheet.columns:
@@ -177,36 +192,51 @@ def searching_column_id(sheet_id, new_value):
         else:
             tkinter.messagebox.showinfo(
                 "Searching column ID",
-                f"Invaild or not found: {sheet}"
+                f"Invalid or not found sheet: {sheet}"
             )
             return None
     
-    except smartsheet.exception.ApiError as e:
+    except smartsheet.exceptions.ApiError as e:
         tkinter.messagebox.showinfo(
-            "Searching column ID",
-            f"Error during API call: {e}"
-        )
+                "Searching column ID",
+                f"Error during API call: {e}"
+            )
         return None
+
 
 def update_single_cell_in_smartsheet(sheet_id, row_id, column_id, new_value):
     """Update a single cell in a row on a Smartsheet."""
-    sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
+    try:
+        sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
 
-    updated_cell = smartsheet.models.Cell()
-    updated_cell.column_id = column_id
-    updated_cell.value = new_value
-    updated_cell.strict = False
+        updated_cell = smartsheet.models.Cell()
+        updated_cell.column_id = column_id
+        updated_cell.value = new_value
+        updated_cell.strict = False
 
-    updated_row = smartsheet.models.Row()
-    updated_row.id = row_id
-    updated_row.cells = [updated_cell]
-
-    response = smartsheet_client.Sheets.update_rows(sheet.id, [updated_row])
-
-    if response.message == 'SUCCESS':
-        print("The data has been changed")
-    else:
-        print(f"Error: {response.message}")
+        updated_row = smartsheet.models.Row()
+        updated_row.id = row_id
+        updated_row.cells = [updated_cell]
+    
+        if isinstance(sheet, smartsheet.models.Sheet):
+            response = smartsheet_client.Sheets.update_rows(sheet.id, [updated_row])
+            if response.message == 'SUCCESS':
+                print("The data has been changed")
+            else:
+                print(f"Error: {response.message}")
+        else:
+            tkinter.messagebox.showinfo(
+                "Update single cell in Smartsheet",
+                f"Invalid or not found sheet: {sheet}"
+            )
+            return None
+    
+    except smartsheet.exceptions.ApiError as e:
+        tkinter.messagebox.showinfo(
+                "Update single cell in Smartsheet",
+                f"Error during API call: {e}"
+            )
+        return None
 
 
 def read_vendor_data():
@@ -217,29 +247,28 @@ def read_vendor_data():
 
 def refresh_label(vendor_name, vendor_url, word_file):
     """Refresh the label displaying vendor name, vendor URL, and word file."""
-    label_vendor = Label(gui_main_window, text=f"Vendor: {vendor_name} | URL: {vendor_url}")
+    label_vendor = Label(gui_main_window, text=f"{vendor_name}")
     label_vendor.place(x=530, y=45)
-    label_file = Label(gui_main_window, text=f"File: {word_file}")
+    label_file = Label(gui_main_window, text=f"{word_file}")
     label_file.place(x=170, y=135)
     gui_main_window.update()
-    print(f"{vendor_name} | {vendor_url} | {word_file}")
 
 
 def ask_about_word():
     """Prompt the user to select a Word file."""
-    global vendor_name, vendor_url, word_file  # Declare as global so it can be accessed in other parts of the code
+    global vendor_name, vendor_url, word_file
     word_file = filedialog.askopenfilename()
-
+    
     # Check if the file is a DOCX file and if it exists
     if not word_file.lower().endswith('.docx') or not os.path.isfile(word_file):
         tkinter.messagebox.showinfo(
             "Open",
             f"Invalid file format or file not found: {word_file}"
-            )
+        )
         return None
-    
+
     if word_file and os.path.exists(word_file):
-        ask_about_file = tkinter.messagebox.askquestion("Open", f"Is {word_file} a Word file?")
+        ask_about_file = tkinter.messagebox.askquestion("Open", f"Is {word_file} a selected file?")
 
         if ask_about_file == 'yes':
             # Only refresh the label once vendor and file are both selected
@@ -251,7 +280,7 @@ def ask_about_word():
 
 def set_vendor_url(vendor_name_local, vendor_url_local, word_file):
     """Set the vendor URL and refresh the label if both vendor and file are selected."""
-    global vendor_name, vendor_url  # Declare global variables first
+    global vendor_name, vendor_url
     vendor_name = vendor_name_local  # Now assign values to them
     vendor_url = vendor_url_local
 
@@ -263,8 +292,6 @@ def set_vendor_url(vendor_name_local, vendor_url_local, word_file):
 
 def connection_tester():
     """Test the Smartsheet connection."""
-    print("Smartsheet connection test")
-
     try:
         account_info = smartsheet_client.Users.get_current_user()
         tkinter.messagebox.showinfo(
@@ -280,11 +307,7 @@ def connection_tester():
 
 def starter():
     """Start the process by checking the vendor URL and Word file."""
-    global vendor_url, word_file, vendor_name  # Declare global variables
-
-    if vendor_url != "":
-        if "https://app.smartsheet.com/sheets/" not in vendor_url:
-            vendor_url = f"https://app.smartsheet.com/sheets/{vendor_url}?view=grid"
+    global vendor_url, word_file, vendor_name
 
     if vendor_url != "" and word_file != "":
         ask_about_start = tkinter.messagebox.askquestion(
@@ -292,7 +315,6 @@ def starter():
             f"Do you want to start the process for: \nVendor: {vendor_name}\n"
             f"File path: {word_file}\n?"
         )
-        print(f"ask_about_start: {ask_about_start}")
         if ask_about_start == 'yes':
             print(f"Vendor name: {vendor_name}")
             print(f"Vendor URL: {vendor_url}")
