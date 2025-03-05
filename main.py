@@ -74,6 +74,13 @@ def get_count_import_docx_data_to_smartsheet(file_path):
     issue_delay_counts = 0
     checked_rows = 0
 
+    # Columns to check for delay (using column names from smartsheet_data.column_name)
+    delay_column_names = [
+        smartsheet_data.column_name[10], smartsheet_data.column_name[11],
+        smartsheet_data.column_name[12], smartsheet_data.column_name[14],
+        smartsheet_data.column_name[16], smartsheet_data.column_name[18]
+    ]
+
     for row in table.rows[2:]:
         row_data = [
             row.cells[col_idx].text.strip() for col_idx in columns if col_idx < len(row.cells)
@@ -90,7 +97,15 @@ def get_count_import_docx_data_to_smartsheet(file_path):
             if d_code and issue_type:
                 issue_type_counts[d_code, issue_type] += 1
 
-            if uat_time > 2:
+            # Check if any of the delay columns contain a value that requires counting as a delay
+            # Check delay columns from smartsheet_data.column_name
+            delay_found = False
+            for col_name in delay_column_names:
+                if any(col_name.lower() in cell.text.lower() for cell in row.cells):
+                    delay_found = True
+                    break
+
+            if delay_found and uat_time > 2:
                 print(row.cells[0].text.strip(), f" Yes: {uat_time}")
                 issue_delay_counts += 1
             else:
