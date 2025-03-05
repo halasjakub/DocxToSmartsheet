@@ -107,11 +107,11 @@ def get_count_import_docx_data_to_smartsheet(file_path):
     row_id = searching_row_id(
         vendor_url, smartsheet_data.column_name[0], d_code, smartsheet_data.column_name[3], e_number
     )
-
+    """
     for smartsheet_column_name in smartsheet_data.column_name[7:]:
         column_id = searching_column_id(vendor_url, smartsheet_column_name)
         update_single_cell_in_smartsheet(vendor_url, row_id, column_id, 0)
-
+    """
     print("\n D-code | Enhancement number | Issues number | Issue type")
 
     for (d_code, issue_type), issues_number in issue_type_counts.items():
@@ -123,6 +123,44 @@ def get_count_import_docx_data_to_smartsheet(file_path):
         vendor_url, row_id, issues_delay_number_column_id, issue_delay_counts
     )
 
+    def get_cell_value(sheet_id, row_id, column_id):
+        """Fetch the value of a cell in Smartsheet based on row_id and column_id."""
+        try:
+            # Get the sheet by sheet_id
+            sheet = smartsheet_client.Sheets.get_sheet(sheet_id)
+            
+            # Iterate through rows to find the matching row_id
+            for row in sheet.rows:
+                if row.id == row_id:
+                    # Iterate through cells to find the matching column_id
+                    for cell in row.cells:
+                        if cell.column_id == column_id:
+                            return cell.value  # Return the value of the cell
+            
+            return None  # Return None if the cell doesn't exist
+
+        except smartsheet.exceptions.ApiError as e:
+            # Display an error message if API call fails
+            tkinter.messagebox.showinfo(
+                "Get cell value",
+                f"Error during API call: {e}"
+            )
+            return None
+
+
+    # Iterate through columns 7 to 22
+    for i in range(7, 22):  # Assuming columns are indexed starting from 0
+        smartsheet_column_name = smartsheet_data.column_name[i]
+        column_id = searching_column_id(vendor_url, smartsheet_column_name)
+        
+        # Get the current value of the cell
+        cell_value = get_cell_value(vendor_url, row_id, column_id)  # Function that fetches cell value
+        
+        # Check if the cell is empty (None or empty string)
+        if cell_value is None or cell_value == "":
+            # If the cell is empty, update it with value 0
+            update_single_cell_in_smartsheet(vendor_url, row_id, column_id, 0)
+            
     processing_time_end = time.time()
     processing_time = round(processing_time_end - processing_time_start)
 
